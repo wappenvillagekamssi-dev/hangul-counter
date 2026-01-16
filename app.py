@@ -2,7 +2,7 @@ import streamlit as st
 from collections import Counter
 
 # ===============================
-# 한글 분해용 데이터
+# 한글 분해 테이블
 # ===============================
 
 CHOSUNG = [
@@ -12,7 +12,9 @@ CHOSUNG = [
 
 JUNGSUNG = [
     "ㅏ","ㅐ","ㅑ","ㅒ","ㅓ","ㅔ","ㅕ","ㅖ",
-    "ㅗ","ㅘ","ㅙ","ㅚ","ㅛ","ㅜ","ㅝ","ㅞ","ㅟ","ㅠ","ㅡ","ㅢ","ㅣ"
+    "ㅗ","ㅘ","ㅙ","ㅚ","ㅛ",
+    "ㅜ","ㅝ","ㅞ","ㅟ","ㅠ",
+    "ㅡ","ㅢ","ㅣ"
 ]
 
 JONGSUNG = [
@@ -21,7 +23,10 @@ JONGSUNG = [
     "ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"
 ]
 
-# 쌍자음 분해
+# ===============================
+# 자음 분해 규칙
+# ===============================
+
 DOUBLE_CONSONANT = {
     "ㄲ": ["ㄱ","ㄱ"],
     "ㄸ": ["ㄷ","ㄷ"],
@@ -30,7 +35,6 @@ DOUBLE_CONSONANT = {
     "ㅉ": ["ㅈ","ㅈ"]
 }
 
-# 겹받침 분해
 DOUBLE_JONG = {
     "ㄳ": ["ㄱ","ㅅ"],
     "ㄵ": ["ㄴ","ㅈ"],
@@ -45,24 +49,39 @@ DOUBLE_JONG = {
     "ㅄ": ["ㅂ","ㅅ"]
 }
 
-# 모음 분해 규칙
+# ===============================
+# ⭐ 최종 모음 분해 규칙 (헌법)
+# ===============================
+
 VOWEL_RULE = {
+    # 기본 모음
+    "ㅣ": ["ㅣ"],
     "ㅏ": ["ㅏ"],
     "ㅑ": ["ㅑ"],
     "ㅐ": ["ㅐ"],
     "ㅔ": ["ㅔ"],
     "ㅖ": ["ㅖ"],
+
+    # 변형
     "ㅓ": ["ㅏ"],
-    "ㅕ": ["ㅑ"],
     "ㅗ": ["ㅏ"],
-    "ㅛ": ["ㅑ"],
     "ㅜ": ["ㅏ"],
+    "ㅕ": ["ㅑ"],
+    "ㅛ": ["ㅑ"],
     "ㅠ": ["ㅑ"],
     "ㅡ": ["ㅣ"],
+    "ㅒ": ["ㅐ"],
+
+    # 복합
+    "ㅢ": ["ㅣ","ㅣ"],
     "ㅚ": ["ㅏ","ㅣ"],
     "ㅟ": ["ㅏ","ㅣ"],
-    "ㅢ": ["ㅣ","ㅣ"],
-    "ㅣ": ["ㅣ"]
+
+    # 추가 정의
+    "ㅘ": ["ㅏ","ㅏ"],
+    "ㅙ": ["ㅏ","ㅐ"],
+    "ㅝ": ["ㅏ","ㅏ"],
+    "ㅞ": ["ㅏ","ㅔ"]
 }
 
 # ===============================
@@ -72,7 +91,7 @@ VOWEL_RULE = {
 def decompose_hangul(char):
     result = []
 
-    # 이미 자모로 입력된 경우
+    # 자모 단독 입력
     if char in DOUBLE_CONSONANT:
         return DOUBLE_CONSONANT[char]
 
@@ -82,6 +101,7 @@ def decompose_hangul(char):
     if char in VOWEL_RULE:
         return VOWEL_RULE[char]
 
+    # 완성형 한글
     code = ord(char) - 0xAC00
     if code < 0 or code > 11171:
         return [char]
@@ -92,13 +112,10 @@ def decompose_hangul(char):
 
     # 초성
     c = CHOSUNG[cho]
-    if c in DOUBLE_CONSONANT:
-        result.extend(DOUBLE_CONSONANT[c])
-    else:
-        result.append(c)
+    result.extend(DOUBLE_CONSONANT.get(c, [c]))
 
     # 중성
-    result.extend(VOWEL_RULE.get(JUNGSUNG[jung], []))
+    result.extend(VOWEL_RULE[JUNGSUNG[jung]])
 
     # 종성
     if jong != 0:
@@ -113,7 +130,7 @@ def decompose_hangul(char):
     return result
 
 # ===============================
-# 메인 로직
+# 카운트 로직
 # ===============================
 
 def count_characters(text):
@@ -125,9 +142,8 @@ def count_characters(text):
             counter[char.upper()] += 1
 
         # 한글
-        elif "가" <= char <= "힣" or char in CHOSUNG or char in JUNGSUNG or char in JONGSUNG:
-            parts = decompose_hangul(char)
-            for p in parts:
+        elif ("가" <= char <= "힣") or char in CHOSUNG or char in JUNGSUNG:
+            for p in decompose_hangul(char):
                 counter[p] += 1
 
     return counter
@@ -138,10 +154,10 @@ def count_characters(text):
 
 st.set_page_config(page_title="와펜 글자 계산기")
 
-st.title("🧵 와펜 글자 개수 계산기 by.와펜마을감씨🍊")
-st.write("한글 · 영어 상관없이 입력하면 자동으로 개수를 계산해드립니다.")
+st.title("와펜 글자 개수 계산기 by 와펜마을감씨")
+st.write("한글 · 영어 상관없이 입력하면 글자 개수를 자동으로 계산합니다. 입력하시고 엔터를 눌러주세요 :)")
 
-text = st.text_input("단어 또는 문장을 입력하시고 엔터를 눌러주세요.")
+text = st.text_input("단어 또는 문장을 입력하세요")
 
 if text:
     result = count_characters(text)
