@@ -10,7 +10,18 @@ JUNG = ["ㅏ","ㅐ","ㅑ","ㅒ","ㅓ","ㅔ","ㅕ","ㅖ","ㅗ","ㅘ","ㅙ","ㅚ",
 JONG = ["", "ㄱ","ㄲ","ㄳ","ㄴ","ㄵ","ㄶ","ㄷ","ㄹ","ㄺ","ㄻ","ㄼ","ㄽ","ㄾ","ㄿ","ㅀ","ㅁ","ㅂ","ㅄ","ㅅ","ㅆ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"]
 
 # =====================
-# 모음 분해 규칙 (네 기준)
+# 쌍자음 분해 규칙
+# =====================
+double_consonant_map = {
+    "ㄲ": "ㄱ",
+    "ㄸ": "ㄷ",
+    "ㅃ": "ㅂ",
+    "ㅆ": "ㅅ",
+    "ㅉ": "ㅈ"
+}
+
+# =====================
+# 모음 분해 규칙 (감씨 기준)
 # =====================
 vowel_map = {
     "ㅏ": ["ㅏ"],
@@ -47,18 +58,27 @@ def count_korean(text):
 
         idx = ord(ch) - 0xAC00
 
-        # 초성
-        count[CHO[idx // 588]] += 1
+        # ---- 초성 ----
+        cho = CHO[idx // 588]
+        if cho in double_consonant_map:
+            base = double_consonant_map[cho]
+            count[base] += 2
+        else:
+            count[cho] += 1
 
-        # 중성 (분해)
+        # ---- 중성 ----
         jung = JUNG[(idx % 588) // 28]
         for v in vowel_map[jung]:
             count[v] += 1
 
-        # 종성
+        # ---- 종성 ----
         jong = JONG[idx % 28]
         if jong:
-            count[jong] += 1
+            if jong in double_consonant_map:
+                base = double_consonant_map[jong]
+                count[base] += 2
+            else:
+                count[jong] += 1
 
     return dict(count)
 
@@ -78,12 +98,15 @@ def count_english(text):
 # Streamlit UI
 # =====================
 st.title("한글 · 영어 글자 개수 계산기")
-st.write("한글과 영어를 입력하면 각각의 글자 개수를 자동으로 계산합니다.")
+st.write(
+    "한글과 영어를 입력하면 "
+    "자음·모음(분해 기준) 및 알파벳 개수를 자동으로 계산합니다."
+)
 
 text = st.text_input("문구를 입력하세요")
 
 if text:
-    st.subheader("🔹 한글 결과")
+    st.subheader("🔸 한글 결과")
     kr_result = count_korean(text)
     if kr_result:
         for k, v in sorted(kr_result.items()):
@@ -91,7 +114,7 @@ if text:
     else:
         st.write("한글이 없습니다.")
 
-    st.subheader("🔹 영어 결과")
+    st.subheader("🔸 영어 결과")
     en_result = count_english(text)
     if en_result:
         for k, v in sorted(en_result.items()):
