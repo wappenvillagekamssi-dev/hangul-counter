@@ -1,35 +1,57 @@
 import streamlit as st
-from collections import defaultdict
-import string
+from collections import Counter
 
-# =====================
-# 한글 분해 테이블
-# =====================
-CHO = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"]
-JUNG = ["ㅏ","ㅐ","ㅑ","ㅒ","ㅓ","ㅔ","ㅕ","ㅖ","ㅗ","ㅘ","ㅙ","ㅚ","ㅛ","ㅜ","ㅝ","ㅞ","ㅟ","ㅠ","ㅡ","ㅢ","ㅣ"]
-JONG = ["", "ㄱ","ㄲ","ㄳ","ㄴ","ㄵ","ㄶ","ㄷ","ㄹ","ㄺ","ㄻ","ㄼ","ㄽ","ㄾ","ㄿ","ㅀ","ㅁ","ㅂ","ㅄ","ㅅ","ㅆ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"]
+# ===============================
+# 한글 분해용 데이터
+# ===============================
 
-# =====================
-# 쌍자음 분해 규칙
-# =====================
-double_consonant_map = {
-    "ㄲ": "ㄱ",
-    "ㄸ": "ㄷ",
-    "ㅃ": "ㅂ",
-    "ㅆ": "ㅅ",
-    "ㅉ": "ㅈ"
+CHOSUNG = [
+    "ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ",
+    "ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"
+]
+
+JUNGSUNG = [
+    "ㅏ","ㅐ","ㅑ","ㅒ","ㅓ","ㅔ","ㅕ","ㅖ",
+    "ㅗ","ㅘ","ㅙ","ㅚ","ㅛ","ㅜ","ㅝ","ㅞ","ㅟ","ㅠ","ㅡ","ㅢ","ㅣ"
+]
+
+JONGSUNG = [
+    "", "ㄱ","ㄲ","ㄳ","ㄴ","ㄵ","ㄶ","ㄷ","ㄹ","ㄺ","ㄻ",
+    "ㄼ","ㄽ","ㄾ","ㄿ","ㅀ","ㅁ","ㅂ","ㅄ","ㅅ","ㅆ",
+    "ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"
+]
+
+# 쌍자음 분해
+DOUBLE_CONSONANT = {
+    "ㄲ": ["ㄱ","ㄱ"],
+    "ㄸ": ["ㄷ","ㄷ"],
+    "ㅃ": ["ㅂ","ㅂ"],
+    "ㅆ": ["ㅅ","ㅅ"],
+    "ㅉ": ["ㅈ","ㅈ"]
 }
 
-# =====================
-# 모음 분해 규칙 (감씨 기준)
-# =====================
-vowel_map = {
+# 겹받침 분해
+DOUBLE_JONG = {
+    "ㄳ": ["ㄱ","ㅅ"],
+    "ㄵ": ["ㄴ","ㅈ"],
+    "ㄶ": ["ㄴ","ㅎ"],
+    "ㄺ": ["ㄹ","ㄱ"],
+    "ㄻ": ["ㄹ","ㅁ"],
+    "ㄼ": ["ㄹ","ㅂ"],
+    "ㄽ": ["ㄹ","ㅅ"],
+    "ㄾ": ["ㄹ","ㅌ"],
+    "ㄿ": ["ㄹ","ㅍ"],
+    "ㅀ": ["ㄹ","ㅎ"],
+    "ㅄ": ["ㅂ","ㅅ"]
+}
+
+# 모음 분해 규칙
+VOWEL_RULE = {
     "ㅏ": ["ㅏ"],
     "ㅑ": ["ㅑ"],
     "ㅐ": ["ㅐ"],
     "ㅔ": ["ㅔ"],
     "ㅖ": ["ㅖ"],
-    "ㅣ": ["ㅣ"],
     "ㅓ": ["ㅏ"],
     "ㅕ": ["ㅑ"],
     "ㅗ": ["ㅏ"],
@@ -37,87 +59,93 @@ vowel_map = {
     "ㅜ": ["ㅏ"],
     "ㅠ": ["ㅑ"],
     "ㅡ": ["ㅣ"],
-    "ㅚ": ["ㅏ", "ㅣ"],
-    "ㅟ": ["ㅏ", "ㅣ"],
-    "ㅘ": ["ㅏ", "ㅏ"],
-    "ㅙ": ["ㅏ", "ㅐ"],
-    "ㅝ": ["ㅏ", "ㅏ"],
-    "ㅞ": ["ㅏ", "ㅔ"],
-    "ㅢ": ["ㅣ", "ㅣ"]
+    "ㅚ": ["ㅏ","ㅣ"],
+    "ㅟ": ["ㅏ","ㅣ"],
+    "ㅢ": ["ㅣ","ㅣ"],
+    "ㅣ": ["ㅣ"]
 }
 
-# =====================
-# 한글 개수 세기
-# =====================
-def count_korean(text):
-    count = defaultdict(int)
+# ===============================
+# 한글 분해 함수
+# ===============================
 
-    for ch in text:
-        if not ("가" <= ch <= "힣"):
-            continue
+def decompose_hangul(char):
+    result = []
 
-        idx = ord(ch) - 0xAC00
+    # 이미 자모로 입력된 경우
+    if char in DOUBLE_CONSONANT:
+        return DOUBLE_CONSONANT[char]
 
-        # ---- 초성 ----
-        cho = CHO[idx // 588]
-        if cho in double_consonant_map:
-            base = double_consonant_map[cho]
-            count[base] += 2
+    if char in DOUBLE_JONG:
+        return DOUBLE_JONG[char]
+
+    if char in VOWEL_RULE:
+        return VOWEL_RULE[char]
+
+    code = ord(char) - 0xAC00
+    if code < 0 or code > 11171:
+        return [char]
+
+    cho = code // 588
+    jung = (code % 588) // 28
+    jong = code % 28
+
+    # 초성
+    c = CHOSUNG[cho]
+    if c in DOUBLE_CONSONANT:
+        result.extend(DOUBLE_CONSONANT[c])
+    else:
+        result.append(c)
+
+    # 중성
+    result.extend(VOWEL_RULE.get(JUNGSUNG[jung], []))
+
+    # 종성
+    if jong != 0:
+        j = JONGSUNG[jong]
+        if j in DOUBLE_JONG:
+            result.extend(DOUBLE_JONG[j])
+        elif j in DOUBLE_CONSONANT:
+            result.extend(DOUBLE_CONSONANT[j])
         else:
-            count[cho] += 1
+            result.append(j)
 
-        # ---- 중성 ----
-        jung = JUNG[(idx % 588) // 28]
-        for v in vowel_map[jung]:
-            count[v] += 1
+    return result
 
-        # ---- 종성 ----
-        jong = JONG[idx % 28]
-        if jong:
-            if jong in double_consonant_map:
-                base = double_consonant_map[jong]
-                count[base] += 2
-            else:
-                count[jong] += 1
+# ===============================
+# 메인 로직
+# ===============================
 
-    return dict(count)
+def count_characters(text):
+    counter = Counter()
 
-# =====================
-# 영어 알파벳 개수 세기
-# =====================
-def count_english(text):
-    count = defaultdict(int)
+    for char in text.replace(" ", ""):
+        # 영어
+        if char.isalpha() and char.encode().isalpha():
+            counter[char.upper()] += 1
 
-    for ch in text.upper():
-        if ch in string.ascii_uppercase:
-            count[ch] += 1
+        # 한글
+        elif "가" <= char <= "힣" or char in CHOSUNG or char in JUNGSUNG or char in JONGSUNG:
+            parts = decompose_hangul(char)
+            for p in parts:
+                counter[p] += 1
 
-    return dict(count)
+    return counter
 
-# =====================
+# ===============================
 # Streamlit UI
-# =====================
-st.title("한글 · 영어 글자 개수 계산기")
-st.write(
-    "한글과 영어를 입력하면 "
-    "자음·모음(분해 기준) 및 알파벳 개수를 자동으로 계산합니다."
-)
+# ===============================
 
-text = st.text_input("문구를 입력하세요")
+st.set_page_config(page_title="와펜 글자 계산기")
+
+st.title("🧵 와펜 글자 개수 계산기")
+st.write("한글 · 영어 상관없이 입력하면 자동으로 개수를 계산해드립니다.")
+
+text = st.text_area("단어 또는 문장을 입력하세요")
 
 if text:
-    st.subheader("🔸 한글 결과")
-    kr_result = count_korean(text)
-    if kr_result:
-        for k, v in sorted(kr_result.items()):
-            st.write(f"{k} : {v}")
-    else:
-        st.write("한글이 없습니다.")
+    result = count_characters(text)
+    st.subheader("📊 계산 결과")
 
-    st.subheader("🔸 영어 결과")
-    en_result = count_english(text)
-    if en_result:
-        for k, v in sorted(en_result.items()):
-            st.write(f"{k} : {v}")
-    else:
-        st.write("영어 알파벳이 없습니다.")
+    for k, v in sorted(result.items()):
+        st.write(f"{k} : {v}개")
